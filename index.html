@@ -322,7 +322,7 @@ tbody td input:focus{outline:none;background:var(--input-bg);border-color:var(--
 
 <script>
 /* ── CONFIG ── */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/SEU_ID_AQUI/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzEE2cOAPgDXEZIg258RngGBOXQHv82-vchAYVD1ekT-4wdD_QSxmjIfrAmR3adzsYc/exec";
 
 let orcamentos = JSON.parse(localStorage.getItem("orcamentos")) || [];
 let historico  = JSON.parse(localStorage.getItem("historico"))  || [];
@@ -595,16 +595,34 @@ function renderGraficos(){
 function renderHistorico(){
   const el=document.getElementById("listaHistorico");
   if(!historico.length){ el.innerHTML=`<div class="empty-state"><div class="icon">📅</div><p>Nenhum registro ainda.</p></div>`; return; }
-  el.innerHTML=[...historico].reverse().map((h,ii)=>`
-    <div class="hist-item" style="animation-delay:${ii*.04}s">
-      <div><div class="hist-local">${esc(h.local)}</div><div class="hist-date">${h.data}</div></div>
+  el.innerHTML=[...historico].reverse().map((h,ii)=>{
+    const statusMap={ativo:"🟡",concluido:"🟢",cancelado:"🔴"};
+    const ico=statusMap[h.status]||"";
+    const area=h.areaTotalM2>0?`<span style="font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace"> · 📐${parseFloat(h.areaTotalM2).toFixed(1)}m²</span>`:"";
+    return `<div class="hist-item" style="animation-delay:${ii*.04}s">
+      <div>
+        <div class="hist-local">${ico} ${esc(h.local)}</div>
+        <div class="hist-date">${h.data}${area}</div>
+      </div>
       <div class="hist-val">R$${parseFloat(h.total).toFixed(2)}</div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 function salvarHistorico(i){
   const o=orcamentos[i];
   const total=o.itens.reduce((s,it)=>s+(it.qtd*it.preco),0)+(o.maoTotal||0)+(o.extraValor||0);
-  historico.push({data:o.data||new Date().toLocaleDateString("pt-BR"),local:o.local,total:total.toFixed(2)});
+  // Nome do registro: locais da casa (se houver) + nome do orçamento
+  const locais=(o.locaisCasa||[]);
+  const nomeHist = locais.length
+    ? o.local + " · " + locais.join(", ")
+    : o.local;
+  historico.push({
+    data: o.data||new Date().toLocaleDateString("pt-BR"),
+    local: nomeHist,
+    total: total.toFixed(2),
+    areaTotalM2: o.areaTotalM2||0,
+    status: o.status||"ativo"
+  });
   toast("Salvo no histórico!","success"); render();
 }
 function limparHistorico(){ if(!confirm("Limpar todo o histórico?")) return; historico=[]; salvar(); renderHistorico(); toast("Histórico limpo.","info"); }
